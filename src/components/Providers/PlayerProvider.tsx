@@ -36,7 +36,7 @@ interface PlayerContext {
   setMode: (mode: number) => void;
   shuffled: boolean;
   toggleShuffle: () => void;
-  browse: (routeAlias: string) => void;
+  browse: (routeAlias: string, startOnBrowse: boolean) => void;
 }
 
 const playerContext = createContext({} as PlayerContext);

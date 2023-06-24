@@ -1,9 +1,10 @@
 import { usePlayer } from "@/components/Providers/PlayerProvider";
 import { artistsToString, msToTime } from "@/lib/util";
-import { Flex, Text } from "@chakra-ui/react";
+import { Flex, Tab, Text } from "@chakra-ui/react";
 import { useState } from "react";
 import { usePlayerController } from "../../PlayerController";
 import PlaybackIndicator from "./PlaybackIndicator";
+import { BiPlayCircle } from "react-icons/bi"
 
 export default function PlayingMode() {
   const {
@@ -51,7 +52,8 @@ export default function PlayingMode() {
           browse(
             currentTrack
               ? playlistContext!.routeAlias
-              : browsePlaylistContext!.routeAlias
+              : browsePlaylistContext!.routeAlias,
+              false
           )
         }
       >
@@ -127,9 +129,20 @@ function PlaylistDashboard() {
               key={p.id}
               color={browsePlaylistContext?.id === p.id ? "purple" : "white"}
               _hover={{ cursor: "pointer", color: "purple" }}
-              onClick={() => browse(p.routeAlias)}
+              alignItems="center"
             >
-              {p.name}
+              <Flex 
+              fontSize="21px"
+              _hover={{ cursor: "pointer", color: "orange" }}
+              onClick={() => browse(p.routeAlias, true)}> 
+                <BiPlayCircle/> {/*TODO: add space here, no idea how????*/}
+              </Flex>
+
+              <Flex
+              onClick={() => browse(p.routeAlias, false)}>
+                {p.name} 
+              </Flex>
+
             </Flex>
           ))
         ) : (

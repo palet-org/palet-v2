@@ -64,7 +64,7 @@ function ScrollPiece({ preview }: { preview: PlaylistPreview }) {
   const { setDiscoverModal } = useModal();
 
   const handleSelect = () => {
-    browse(preview.routeAlias);
+    browse(preview.routeAlias, false);
     setDiscoverModal(false);
   };
 

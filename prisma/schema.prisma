@@ -19,54 +19,7 @@ model users {
   first_name    String?
   last_name     String?
   kandi_balance Int
-  donations     donations[]
   donations_v2  donations_v2[]
-}
-
-model donations {
-  user_id          String
-  track_id         BigInt
-  amount           Int
-  lastDonationDate DateTime      @default(now())
-  track            static_tracks @relation(fields: [track_id], references: [id])
-  users            users         @relation(fields: [user_id], references: [clerk_id], onDelete: Cascade, onUpdate: NoAction)
-
-  @@id([user_id, track_id])
-}
-
-model playlists_tracks {
-  track_id         BigInt           @default(autoincrement())
-  playlist_id      BigInt
-  track_index      Int              @db.SmallInt
-  static_playlists static_playlists @relation(fields: [playlist_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  static_tracks    static_tracks    @relation(fields: [track_id], references: [id], onDelete: NoAction, onUpdate: NoAction)
-
-  @@id([track_id, playlist_id])
-}
-
-model static_playlists {
-  id               BigInt             @id @default(autoincrement())
-  created_at       DateTime?          @default(now()) @db.Timestamptz(6)
-  name             String             @unique
-  cdn_image_url    String?
-  origin_url       String?
-  track_count      Int                @db.SmallInt
-  route_alias      String             @unique
-  description      String?
-  playlists_tracks playlists_tracks[]
-}
-
-model static_tracks {
-  id               BigInt             @id @default(autoincrement())
-  created_at       DateTime?          @default(now()) @db.Timestamptz(6)
-  name             String             @unique
-  cdn_path         String
-  artists          String[]
-  duration_ms      BigInt?
-  kandi_count      BigInt?            @default(0)
-  origin_url       String?
-  donations        donations[]
-  playlists_tracks playlists_tracks[]
 }
 
 model playlists_tracks_v2 {

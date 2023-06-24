@@ -6,26 +6,10 @@ import { useQueryClient } from "react-query";
 import { BROWSE_PLAYLIST_CONTEXT_QUERY } from "../constants";
 import { NowPlaying, PlaylistContext } from "../types";
 import { useQueryStates } from "./Query/useQueryStates";
+import { fetchPlaylistPreviews } from "../services/client/playlist";
 
 const MODE_LOWER_BOUND = 0;
 const MODE_UPPER_BOUND = 2;
-
-// quick and dirty solution to autoplaying a new playlist
-const AUTO_PLAY = [
-  "shibuyuhh club mix",
-  "soho",
-  "jdm",
-  "marmix",
-  "pmixv6",
-  "french_riviera",
-  "espresso",
-  "pmixv3",
-  "smm",
-  "pmixv1",
-  "pmixv4",
-  "pmixv2",
-  "berlin",
-];
 
 export default function usePlayerState() {
   const [playlistContext, setPlaylistContext] =
@@ -41,7 +25,7 @@ export default function usePlayerState() {
   const [autoplay, setAutoplay] = useState({ on: false, prevName: "" });
 
   const queryClient = useQueryClient();
-  const [playerQueries, setPlayerQueries] = useQueryStates(
+  const [_, setPlayerQueries] = useQueryStates(
     {
       type: queryTypes.string,
       crate: queryTypes.string,
@@ -81,8 +65,10 @@ export default function usePlayerState() {
     updatePlayerState();
   }, [playlistContext]);
 
-  const nextSong = () => {
+  const nextSong = async () => {
     if (!playlistContext || playlistContext.index === -1) return;
+
+    // If we're in shuffle mode
     if (shuffled) {
       const newShuffledIndex =
         (playlistContext.shuffledIndex + 1) % playlistContext.songs.length;
@@ -92,25 +78,52 @@ export default function usePlayerState() {
         index: newSongIndex,
         shuffledIndex: newShuffledIndex,
       });
-    } else {
-      if (playlistContext.index + 1 == playlistContext.songs.length) {
-        const curIndex =
-          AUTO_PLAY.indexOf(playlistContext.routeAlias) !== -1
-            ? AUTO_PLAY.indexOf(playlistContext.routeAlias)
-            : 0;
-        const nextIndex = (curIndex + 1) % AUTO_PLAY.length;
-        setAutoplay({ on: true, prevName: browsePlaylistContext?.name! });
-        browse(AUTO_PLAY[nextIndex]);
-      } else {
-        const newSongIndex = playlistContext.index + 1;
-        const newShuffledIndex =
-          playlistContext.shuffledOrder.indexOf(newSongIndex);
-        setPlaylistContext({
-          ...playlistContext,
-          index: newSongIndex,
-          shuffledIndex: newShuffledIndex,
-        });
+      return;
+    }
+
+    // If we're NOT at the end
+    if (playlistContext.index + 1 < playlistContext.songs.length) {
+      const newSongIndex = playlistContext.index + 1;
+      const newShuffledIndex =
+        playlistContext.shuffledOrder.indexOf(newSongIndex);
+      setPlaylistContext({
+        ...playlistContext,
+        index: newSongIndex,
+        shuffledIndex: newShuffledIndex,
+      });
+      return;
+    }
+
+    //at end of playlist, no shuffle
+    else {
+      let routeAlias: string = playlistContext.routeAlias;
+      const nextPlaylist = await getNextPlaylistHelper(routeAlias);
+      if (nextPlaylist.routeAlias === "" ) {
+        throw new Error("ERROR: Failed to get next playlist");
       }
+      else {
+        setAutoplay({on: true, prevName: browsePlaylistContext?.name!});
+        browse(nextPlaylist.routeAlias);
+      }
+    }
+  };
+
+  //helper method. TODO: move to permanent API call at 'src/app/api/playlist/nextPlaylist/route.ts'
+  const getNextPlaylistHelper = async (routeAlias: string) => {
+    try {
+      const playlistPreviews = await fetchPlaylistPreviews();
+      playlistPreviews.sort((a, b) => b.kandiCount - a.kandiCount); // sort in decreasing order
+      const curIndex = playlistPreviews.findIndex(
+        (preview) => preview.routeAlias === routeAlias
+      );
+      if (curIndex === playlistPreviews.length) {
+        return ({ routeAlias: playlistPreviews[0].routeAlias,  });
+      }
+      return ({
+        routeAlias: playlistPreviews[curIndex + 1].routeAlias, 
+      });
+    } catch (e) {
+      return ({ routeAlias: "", });
     }
   };
 
@@ -140,7 +153,7 @@ export default function usePlayerState() {
     }
   };
 
-  const selectSong = (name: string) => {
+  const selectSong = (name: string, playByDefault: boolean = true) => {
     if (!isEqual(playlistContext, browsePlaylistContext)) {
       if (!browsePlaylistContext || currentTrack?.name === name) return;
 
@@ -166,8 +179,8 @@ export default function usePlayerState() {
         shuffledIndex,
       });
     }
-
-    setTimeout(() => setPlaying(true), 1000);
+    //plays by default in most cases, added the optional bool for modularity
+    if (playByDefault) setTimeout(() => setPlaying(true), 1000);
   };
 
   const toggle = () => {
@@ -220,7 +233,10 @@ export default function usePlayerState() {
     });
   };
 
-  const browse = (routeAlias: string) => {
+  const browse = (routeAlias: string, startOnBrowse: boolean = false) => {
+    if (startOnBrowse) {
+      setAutoplay({on: true, prevName: browsePlaylistContext?.name!});
+    }
     setPlayerQueries((prevQueries) => ({ ...prevQueries, crate: routeAlias }));
     queryClient.invalidateQueries(BROWSE_PLAYLIST_CONTEXT_QUERY);
   };
